@@ -181,6 +181,7 @@ upstream code will never change, the patches will keep applying cleanly.
 | [`0005-stop-music-with-sdl-mixer`](patches/0005-stop-music-with-sdl-mixer.patch) | The previous music (e.g. the Game Over tune) kept playing after loading a save |
 | [`0006-loop-music-with-sdl-mixer`](patches/0006-loop-music-with-sdl-mixer.patch) | Music played only once, so the game went silent after each track (1 to 5 minutes) |
 | [`0007-menu-in-underwater-scenes`](patches/0007-menu-in-underwater-scenes.patch) | Pressing Esc in an underwater scene or at the teleporter crashed the game ("Duplicate object name MENU") |
+| [`0008-tele09-folder-name`](patches/0008-tele09-folder-name.patch) | The teleporter in scene C2_27 crashed the game: its destination asks for a `__4` folder that is called `_4` |
 
 ## Credits and licenses
 

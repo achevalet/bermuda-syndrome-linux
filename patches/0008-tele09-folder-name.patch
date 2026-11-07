@@ -1,0 +1,30 @@
+Load the C2_27 teleporter's destination scene.
+
+TELE09.SCN, where the teleporter in scene C2_27 leads, lists its movies
+as ..\__4\eup.mov, scr.mov and stone.mov, but the folder is _4 (as the
+other scenes write it). Opening the scene stopped the game with "Unable
+to open '..\__4\eup.mov'". When a file is not found and its path has a
+doubled underscore after a backslash, try again with a single one.
+
+--- a/fs.cpp
++++ b/fs.cpp
+@@ -301,6 +301,19 @@
+ 		}
+ 		free(fixedPath);
+ 	}
++	if (!f) {
++		// TELE09.SCN says ..\__4\ for the _4 folder: retry with one underscore.
++		const char *p = strstr(path, "\\__");
++		if (p) {
++			char *retry = strdup(path);
++			if (retry) {
++				char *q = retry + (p - path) + 1;
++				memmove(q, q + 1, strlen(q + 1) + 1);
++				f = openFile(retry, false);
++				free(retry);
++			}
++		}
++	}
+ 	if (errorIfNotFound && !f) {
+ 		error("Unable to open '%s'", path);
+ 	}
