@@ -1,0 +1,6 @@
+# Built engine
+/build/
+# Game data imported from your own copy: copyrighted, never commit it
+/data/
+/data.new/
+/.import.*
