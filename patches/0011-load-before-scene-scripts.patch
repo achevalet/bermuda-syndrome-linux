@@ -1,0 +1,25 @@
+Switch to a loaded game's scene before running the old scene's scripts.
+
+Loading a game sets _tempTextBuffer to the saved scene's name and
+switches to it on the next frame. Meanwhile, the current scene's
+scripts ran once more and could start a dialogue, which writes its
+answer id to the same buffer. After the raft's game over in the FLY
+scenes, pressing L started OVER.DLG again, whose answer "1" was then
+loaded as a scene: "ERROR: Unable to open '1'!". Skip the rest of
+the frame after a load, so that nothing runs before the switch.
+
+--- a/game.cpp
++++ b/game.cpp
+@@ -280,6 +280,12 @@
+ 			_workaroundRaftFlySceneBug = strncmp(_currentSceneScn, "FLY", 3) == 0;
+ 		}
+ 		updateKeysPressedTable();
++		if (_switchScene) {
++			// A game was just loaded: switch to its scene on the next frame
++			// without running this scene's scripts, which could start a
++			// dialogue that overwrites the scene name in _tempTextBuffer.
++			break;
++		}
+ 		updateMouseButtonsPressed();
+ 		runObjectsScript();
+ 		if (_startDialogue) {
