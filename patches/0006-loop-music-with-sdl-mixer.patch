@@ -1,0 +1,27 @@
+Loop the music with the SDL mixer.
+
+MixerSDL started music with a loop count of 0, which plays it once:
+after a track ended (e.g. jungle1.mid, 4m16s) the game stayed silent
+until a scene started another one. The software mixer used for the
+digital .ogg soundtrack already loops by default.
+
+--- a/mixer_sdl.cpp
++++ b/mixer_sdl.cpp
+@@ -95,7 +95,7 @@
+ 			if (rw) {
+ 				_music = Mix_LoadMUSType_RW(rw, MUS_MID, 1);
+ 				if (_music) {
+-					Mix_PlayMusic(_music, 0);
++					Mix_PlayMusic(_music, -1); // loop, like the software mixer
+ 				} else {
+ 					warning("Failed to load music, %s", Mix_GetError());
+ 				}
+@@ -106,7 +106,7 @@
+ 	void playMusic(const char *path) {
+ 		_music = Mix_LoadMUS(path);
+ 		if (_music) {
+-			Mix_PlayMusic(_music, 0);
++			Mix_PlayMusic(_music, -1); // loop, like the software mixer
+ 		} else {
+ 			warning("Failed to load music '%s', %s", path, Mix_GetError());
+ 		}
