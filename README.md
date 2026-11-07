@@ -102,10 +102,12 @@ scripts protect you in two ways:
 
 1. **S is disabled on the Game Over screen.** A small patch
    ([`patches/`](patches/)) is applied to the engine when `setup.sh` builds it.
-2. **Automatic backups.** When you start `./play.sh`, your saves are copied to
-   `~/.local/share/bermuda-syndrome/backups/<date>/` if any of them changed since
-   the last backup. The last 10 backups are kept; set `BERMUDA_BACKUPS` to change
-   that (`0` disables it). To restore one, copy the file back into `saves/`.
+2. **Automatic backups.** Each time you save over a slot, the previous version
+   is moved to `~/.local/share/bermuda-syndrome/backups/bermuda.NNN/<date>`,
+   named after the time it was saved. The last 10 versions of each slot are
+   kept; set `BERMUDA_BACKUPS` to change that (`0` disables it). To restore one,
+   copy it into a free slot, for example from `~/.local/share/bermuda-syndrome/`:
+   `cp backups/bermuda.001/2026-11-04_221428 saves/bermuda.005`.
 
 The game's MIDI music plays through SDL_mixer and FluidSynth. `setup.sh` installs a
 General MIDI soundfont if there isn't one already. To use a different one, set
@@ -167,6 +169,7 @@ upstream code will never change, the patches will keep applying cleanly.
 | Patch | Fixes |
 |---|---|
 | [`0001-no-save-after-game-over`](patches/0001-no-save-after-game-over.patch) | Pressing S on the Game Over screen overwrote the slot with a dead game |
+| [`0002-keep-save-history`](patches/0002-keep-save-history.patch) | Saving overwrote the slot, losing the previous save; it now keeps the last versions of each slot (see Saves) |
 
 ## Credits and licenses
 

@@ -27,43 +27,13 @@ fi
 mkdir -p "$STATE/saves"
 cd "$STATE"
 
-# The engine overwrites a save slot in place, so before each session keep a copy
-# of the saves in backups/<date>/, if they changed since the last one. The last
-# $KEEP backups are kept.
+# The engine overwrites a save slot in place, so have it first move the old
+# version to backups/bermuda.NNN/<date>, keeping the last $KEEP of each slot.
 KEEP=${BERMUDA_BACKUPS:-10}
 case $KEEP in
 	''|*[!0-9]*)
-		echo "BERMUDA_BACKUPS must be a number of backups to keep (0 disables them), not '$KEEP': using 10" >&2
+		echo "BERMUDA_BACKUPS must be a number of saves to keep per slot (0 disables them), not '$KEEP': using 10" >&2
 		KEEP=10 ;;
 esac
 
-# Succeeds if a save is new or differs from its copy in the latest backup.
-saves_changed() {
-	latest=$(ls -d backups/*/ 2>/dev/null | tail -n 1)
-	[ -n "$latest" ] || return 0
-	for f in saves/bermuda.[0-9][0-9][0-9]; do
-		cmp -s "$f" "$latest${f#saves/}" || return 0
-	done
-	return 1
-}
-
-# Deletes the oldest backups beyond $KEEP. Folder names are dates, so the glob
-# lists them oldest first. (A function, to keep the script's "$@" intact.)
-prune_backups() {
-	set -- backups/*/
-	excess=$(( $# - KEEP ))
-	for old in "$@"; do
-		[ "$excess" -gt 0 ] || break
-		rm -rf "$old"
-		excess=$(( excess - 1 ))
-	done
-}
-
-if [ "$KEEP" -gt 0 ] && ls saves/bermuda.[0-9][0-9][0-9] >/dev/null 2>&1 && saves_changed; then
-	backup=backups/$(date +%Y-%m-%d_%H%M%S)
-	mkdir -p "$backup"
-	cp -p saves/bermuda.[0-9][0-9][0-9] "$backup/"
-	prune_backups
-fi
-
-exec "$BIN" --datapath="$DATA" --savepath="$STATE/saves" "$@"
+exec "$BIN" --datapath="$DATA" --savepath="$STATE/saves" --backuppath="$STATE/backups" --backups="$KEEP" "$@"

@@ -190,7 +190,9 @@ build_engine() {
 		SDL_CFLAGS="$(pkg-config --cflags sdl2 SDL2_mixer)" \
 		SDL_LIBS="$(pkg-config --libs sdl2 SDL2_mixer)" \
 		VORBIS_LIBS="$(pkg-config --libs vorbisfile)"
-	cp -p "$BUILD_DIR/src/bs" "$BUILD_DIR/bs"
+	# Replace rather than overwrite, which fails while the game is running.
+	cp -p "$BUILD_DIR/src/bs" "$BUILD_DIR/bs.new"
+	mv -f "$BUILD_DIR/bs.new" "$BUILD_DIR/bs"
 	echo "$stamp" >"$BUILD_DIR/.sources"
 }
 

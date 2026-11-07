@@ -1,0 +1,167 @@
+Keep the previous versions of each save slot.
+
+Saving overwrites the slot in place, so a save made before a mistake is
+lost as soon as the slot is saved again. With --backuppath=PATH, the save
+being overwritten is first moved to PATH/bermuda.NNN/, named after the
+time it was made, and only the newest --backups=N (default 10) are kept.
+
+--- a/game.cpp
++++ b/game.cpp
+@@ -4,6 +4,9 @@
+  */
+ 
+ #include <sys/param.h>
++#include <sys/stat.h>
++#include <dirent.h>
++#include <time.h>
+ #include <unistd.h>
+ #include "avi_player.h"
+ #include "decoder.h"
+@@ -23,6 +26,8 @@
+ 	_state = _nextState = -1;
+ 	_mixer = _stub->getMixer();
+ 	_stateSlot = 1;
++	_backupPath = 0;
++	_backupCount = 0;
+ 	_cheats = 0;
+ 	detectVersion();
+ 	detectTextCp949();
+@@ -400,6 +405,7 @@
+ 		_stub->_pi.save = false;
+ 		char filePath[MAXPATHLEN];
+ 		snprintf(filePath, sizeof(filePath), kGameStateFileNameFormat, _savePath, _stateSlot);
++		backupState(filePath, _stateSlot);
+ 		File f;
+ 		if (!f.open(filePath, "wb")) {
+ 			warning("Unable to save game state to file '%s'", filePath);
+@@ -1453,3 +1459,41 @@
+ 	}
+ 	return false;
+ }
++
++static int isBackupName(const struct dirent *de) {
++	return de->d_name[0] != '.';
++}
++
++// Moves the save about to be overwritten to <backupPath>/bermuda.NNN/<date it
++// was saved>, then deletes all but the newest _backupCount files there.
++void Game::backupState(const char *filePath, int slot) {
++	struct stat st;
++	if (!_backupPath || _backupCount <= 0 || stat(filePath, &st) != 0) {
++		return;
++	}
++	char dirPath[MAXPATHLEN];
++	snprintf(dirPath, sizeof(dirPath), "%s/bermuda.%03d", _backupPath, slot);
++	mkdir(_backupPath, 0700);
++	mkdir(dirPath, 0700);
++	char date[32];
++	strftime(date, sizeof(date), "%Y-%m-%d_%H%M%S", localtime(&st.st_mtime));
++	char backupPath[MAXPATHLEN + 260]; // room for dirPath + a file name
++	snprintf(backupPath, sizeof(backupPath), "%s/%s", dirPath, date);
++	if (rename(filePath, backupPath) != 0) {
++		warning("Unable to back up '%s' to '%s'", filePath, backupPath);
++		return;
++	}
++	// Dates sort oldest first.
++	struct dirent **names;
++	const int count = scandir(dirPath, &names, isBackupName, alphasort);
++	for (int i = 0; i < count; ++i) {
++		if (i < count - _backupCount) {
++			snprintf(backupPath, sizeof(backupPath), "%s/%s", dirPath, names[i]->d_name);
++			unlink(backupPath);
++		}
++		free(names[i]);
++	}
++	if (count >= 0) {
++		free(names);
++	}
++}
+--- a/game.h
++++ b/game.h
+@@ -335,6 +335,7 @@
+ 	bool compareObjectTransformYPos(int object, bool fetchCmp = true, int cmpY = -1);
+ 	void setupObjectPos(int object, int object2, int useObject2, int useData, int type1, int type2);
+ 	bool intersectsBox(int num, int index, int x1, int y1, int x2, int y2);
++	void backupState(const char *filePath, int slot);
+ 
+ 	// menu.cpp
+ 	void initMenu(int num);
+@@ -462,6 +463,8 @@
+ 	Mixer *_mixer;
+ 	const char *_dataPath;
+ 	const char *_savePath;
++	const char *_backupPath;
++	int _backupCount;
+ 	const char *_musicPath;
+ 	uint32_t _cheats;
+ 	int _stateSlot;
+--- a/main.cpp
++++ b/main.cpp
+@@ -18,14 +18,19 @@
+ 	"  --savepath=PATH    Path to save files (default '.')\n"
+ 	"  --musicpath=PATH   Path to music files (default 'MUSIC')\n"
+ 	"  --fullscreen       Fullscreen display\n"
+-	"  --widescreen=MODE  Widescreen mode ('default', '4:3' or '16:9')\n";
++	"  --widescreen=MODE  Widescreen mode ('default', '4:3' or '16:9')\n"
++	"  --backuppath=PATH  Keep the previous version of each save overwritten\n"
++	"                     in PATH/bermuda.NNN/ (default: none)\n"
++	"  --backups=N        Number of previous versions kept per slot (default 10)\n";
+ 
+ static Game *g_game;
+ static SystemStub *g_stub;
+ 
+-static void init(const char *dataPath, const char *savePath, const char *musicPath, bool fullscreen, int screenMode) {
++static void init(const char *dataPath, const char *savePath, const char *musicPath, const char *backupPath, int backupCount, bool fullscreen, int screenMode) {
+ 	g_stub = SystemStub_SDL_create();
+ 	g_game = new Game(g_stub, dataPath ? dataPath : "DATA", savePath ? savePath : ".", musicPath ? musicPath : "MUSIC");
++	g_game->_backupPath = backupPath;
++	g_game->_backupCount = backupCount;
+ 	g_game->init(fullscreen, screenMode);
+ }
+ 
+@@ -49,6 +54,8 @@
+ 	char *dataPath = 0;
+ 	char *savePath = 0;
+ 	char *musicPath = 0;
++	char *backupPath = 0;
++	int backupCount = 10;
+ 	bool fullscreen = false;
+ 	int screenMode = SCREEN_MODE_DEFAULT;
+ 	if (argc == 2) {
+@@ -65,6 +72,8 @@
+ 			{ "musicpath",  required_argument, 0, 3 },
+ 			{ "fullscreen", no_argument,       0, 4 },
+ 			{ "widescreen", required_argument, 0, 5 },
++			{ "backuppath", required_argument, 0, 6 },
++			{ "backups",    required_argument, 0, 7 },
+ 			{ "help",       no_argument,       0, 0 },
+ 			{ 0, 0, 0, 0 }
+ 		};
+@@ -104,13 +113,19 @@
+ 				}
+ 			}
+ 			break;
++		case 6:
++			backupPath = strdup(optarg);
++			break;
++		case 7:
++			backupCount = atoi(optarg);
++			break;
+ 		default:
+ 			fprintf(stdout, "%s", USAGE);
+ 			return 0;
+ 		}
+ 	}
+ 	g_debugMask = DBG_INFO; // | DBG_GAME | DBG_OPCODES | DBG_DIALOGUE;
+-	init(dataPath, savePath, musicPath, fullscreen, screenMode);
++	init(dataPath, savePath, musicPath, backupPath, backupCount, fullscreen, screenMode);
+ #ifdef __EMSCRIPTEN__
+ 	emscripten_set_main_loop(mainLoop, kCycleDelay, 0);
+ #else
+@@ -129,5 +144,6 @@
+ 	free(dataPath);
+ 	free(savePath);
+ 	free(musicPath);
++	free(backupPath);
+ 	return 0;
+ }
