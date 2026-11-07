@@ -178,6 +178,7 @@ upstream code will never change, the patches will keep applying cleanly.
 | [`0002-keep-save-history`](patches/0002-keep-save-history.patch) | Saving overwrote the slot, losing the previous save; it now keeps the last versions of each slot (see Saves) |
 | [`0003-show-save-slot-messages`](patches/0003-show-save-slot-messages.patch) | Changing slot, saving and loading gave no feedback on screen, so it was easy to save over the wrong slot |
 | [`0004-start-on-latest-save-slot`](patches/0004-start-on-latest-save-slot.patch) | The game always started on slot 1, so L after launching didn't load the game you were playing |
+| [`0005-stop-music-with-sdl-mixer`](patches/0005-stop-music-with-sdl-mixer.patch) | The previous music (e.g. the Game Over tune) kept playing after loading a save |
 
 ## Credits and licenses
 

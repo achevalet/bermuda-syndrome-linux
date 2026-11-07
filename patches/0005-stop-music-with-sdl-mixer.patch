@@ -1,0 +1,28 @@
+Make Game::stopMusic() stop the music with the SDL mixer.
+
+MixerSDL plays music outside its sound channels and returns -1 as its
+id, so stopSound(_mixerMusicId) never halted it. Loading a save, a
+"Midi NULL" scene and the ending video therefore kept the previous
+music playing, e.g. the Game Over tune after loading a save.
+
+--- a/game.cpp
++++ b/game.cpp
+@@ -1147,6 +1147,7 @@
+ void Game::stopMusic() {
+ 	debug(DBG_GAME, "Game::stopMusic()");
+ 	_mixer->stopSound(_mixerMusicId);
++	_mixer->stopMusic();
+ }
+ 
+ void Game::playMusic(const char *name) {
+--- a/mixer.h
++++ b/mixer.h
+@@ -24,6 +24,8 @@
+ 	virtual void playMusic(File *f, int *id) = 0;
+ 	virtual bool isSoundPlaying(int id) = 0;
+ 	virtual void stopSound(int id) = 0;
++	// Overridden by MixerSDL, whose music has no sound id to stop.
++	virtual void stopMusic() {}
+ 	virtual void stopAll() = 0;
+ 
+ 	virtual void setMusicMix(void *param, void (*mix)(void *, uint8_t *, int)) = 0;
