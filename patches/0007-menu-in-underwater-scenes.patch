@@ -1,0 +1,22 @@
+Open the Esc menu in scenes that have a MENU object.
+
+The menu is loaded as objects on top of the current scene, and its object
+is called MENU. Jack's air gauge in the underwater scenes (JACK/EXTRA.MOV)
+and the teleporter screen (LAB07/IOD/TEL.MOV) also have an object called
+MENU, so pressing Esc there stopped the game with "Duplicate object name
+MENU". Only check the menu's names against the other menu objects.
+
+--- a/resource.cpp
++++ b/resource.cpp
+@@ -320,7 +320,10 @@
+ 				SceneObject *so = &_sceneObjectsTable[_sceneObjectsCount];
+ 				len = fp->readUint16LE();
+ 				fp->read(so->name, len);
+-				for (int i = 0; i < _sceneObjectsCount; ++i) {
++				// The menu is loaded on top of the scene and only its own
++				// objects matter: underwater scenes have a MENU object too.
++				const bool menu = (_state == kStateMenu1 || _state == kStateMenu2);
++				for (int i = menu ? _menuObjectCount : 0; i < _sceneObjectsCount; ++i) {
+ 					if (strcmp(_sceneObjectsTable[i].name, so->name) == 0) {
+ 						error("Duplicate object name %s", so->name);
+ 					}

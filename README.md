@@ -180,6 +180,7 @@ upstream code will never change, the patches will keep applying cleanly.
 | [`0004-start-on-latest-save-slot`](patches/0004-start-on-latest-save-slot.patch) | The game always started on slot 1, so L after launching didn't load the game you were playing |
 | [`0005-stop-music-with-sdl-mixer`](patches/0005-stop-music-with-sdl-mixer.patch) | The previous music (e.g. the Game Over tune) kept playing after loading a save |
 | [`0006-loop-music-with-sdl-mixer`](patches/0006-loop-music-with-sdl-mixer.patch) | Music played only once, so the game went silent after each track (1 to 5 minutes) |
+| [`0007-menu-in-underwater-scenes`](patches/0007-menu-in-underwater-scenes.patch) | Pressing Esc in an underwater scene or at the teleporter crashed the game ("Duplicate object name MENU") |
 
 ## Credits and licenses
 
