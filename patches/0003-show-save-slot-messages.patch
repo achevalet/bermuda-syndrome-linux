@@ -1,0 +1,159 @@
+Show the save slot and save/load results on screen.
+
+PgUp/PgDn (and +/-) changed the save slot silently, and S and L gave no
+feedback either: the slot number, a refused save or a missing slot were
+only printed to the terminal, so it was easy to save over the wrong slot.
+Show a short message in the top right corner for 2.5 seconds: "Slot 3"
+(or "Slot 3 (empty)"), "Saved to slot 3", "Loaded slot 3", "Slot 3 is
+empty", "Not saved: game over" or "Could not save to slot 3".
+
+--- a/game.cpp
++++ b/game.cpp
+@@ -6,6 +6,7 @@
+ #include <sys/param.h>
+ #include <sys/stat.h>
+ #include <dirent.h>
++#include <stdarg.h>
+ #include <time.h>
+ #include <unistd.h>
+ #include "avi_player.h"
+@@ -28,6 +29,8 @@
+ 	_stateSlot = 1;
+ 	_backupPath = 0;
+ 	_backupCount = 0;
++	_messageText[0] = 0;
++	_messageEndTime = 0;
+ 	_cheats = 0;
+ 	detectVersion();
+ 	detectTextCp949();
+@@ -382,6 +385,9 @@
+ 		if (slot >= 1 && slot <= 999) {
+ 			_stateSlot = slot;
+ 			debug(DBG_INFO, "Current game state slot is %d", _stateSlot);
++			char filePath[MAXPATHLEN];
++			snprintf(filePath, sizeof(filePath), kGameStateFileNameFormat, _savePath, _stateSlot);
++			showMessage(access(filePath, F_OK) == 0 ? "Slot %d" : "Slot %d (empty)", _stateSlot);
+ 		}
+ 		_stub->_pi.stateSlot = 0;
+ 	}
+@@ -392,14 +398,17 @@
+ 		File f;
+ 		if (!f.open(filePath, "rb")) {
+ 			warning("Unable to load game state from file '%s'", filePath);
++			showMessage("Slot %d is empty", _stateSlot);
+ 		} else {
+ 			loadState(&f, _stateSlot, true);
+ 			_loadState = _switchScene; // gamestate will get loaded on scene switch
++			showMessage("Loaded slot %d", _stateSlot);
+ 		}
+ 	}
+ 	if (_stub->_pi.save && _gameOver) {
+ 		_stub->_pi.save = false;
+ 		warning("Not saving after game over: it would overwrite slot %d with a dead game", _stateSlot);
++		showMessage("Not saved: game over");
+ 	}
+ 	if (_stub->_pi.save) {
+ 		_stub->_pi.save = false;
+@@ -409,8 +418,15 @@
+ 		File f;
+ 		if (!f.open(filePath, "wb")) {
+ 			warning("Unable to save game state to file '%s'", filePath);
++			showMessage("Could not save to slot %d", _stateSlot);
+ 		} else {
+ 			saveState(&f, _stateSlot);
++			if (f.ioErr()) {
++				warning("Error writing game state to file '%s'", filePath);
++				showMessage("Could not save to slot %d", _stateSlot);
++			} else {
++				showMessage("Saved to slot %d", _stateSlot);
++			}
+ 		}
+ 	}
+ 	if (!_isDemo) {
+@@ -1064,6 +1080,7 @@
+ 		}
+ #endif
+ 	}
++	drawMessage();
+ 	win16_stretchBits(&_bitmapBuffer1, _bitmapBuffer1.h + 1, _bitmapBuffer1.w + 1, 0, 0, _bitmapBuffer1.h + 1, _bitmapBuffer1.w + 1, 0, 0);
+ 	memcpy(_bitmapBuffer1.bits, _bitmapBuffer3.bits, kGameScreenWidth * kGameScreenHeight);
+ 	if (_lifeBarDisplayed) {
+@@ -1497,3 +1514,58 @@
+ 		free(names);
+ 	}
+ }
++
++void Game::showMessage(const char *fmt, ...) {
++	va_list va;
++	va_start(va, fmt);
++	vsnprintf(_messageText, sizeof(_messageText), fmt, va);
++	va_end(va);
++	_messageEndTime = _stub->getTimeStamp() + 2500;
++}
++
++static uint8_t findPaletteColor(const uint8_t *pal, int r, int g, int b) {
++	uint8_t best = 0;
++	int bestSum = -1;
++	for (int i = 0; i < 256; ++i, pal += 4) {
++		const int dr = r - pal[2];
++		const int dg = g - pal[1];
++		const int db = b - pal[0];
++		const int sum = dr * dr + dg * dg + db * db;
++		if (bestSum == -1 || sum < bestSum) {
++			bestSum = sum;
++			best = i;
++		}
++	}
++	return best;
++}
++
++// Draws the message in the top right corner (the bag icon is often top left), white with a black shadow, in
++// the dialogue font. The screen buffer is stored bottom-up.
++void Game::drawMessage() {
++	if (!_messageText[0] || (int32_t)(_stub->getTimeStamp() - _messageEndTime) >= 0) {
++		_messageText[0] = 0;
++		return;
++	}
++	const uint8_t *pal = _bitmapBuffer0 + kOffsetBitmapPalette;
++	const uint8_t colors[2] = { findPaletteColor(pal, 0, 0, 0), findPaletteColor(pal, 255, 255, 255) };
++	int w = 0;
++	for (const char *p = _messageText; *p; ++p) {
++		w += _fontCharWidth[(uint8_t)*p] + 1;
++	}
++	for (int pass = 0; pass < 2; ++pass) {
++		int x = _bitmapBuffer1.w - 10 - w + 1 - pass;
++		const int y = 8 + 1 - pass;
++		for (const char *p = _messageText; *p; ++p) {
++			const int chr = (uint8_t)*p;
++			for (int i = 0; i < 16; ++i) {
++				const uint16_t bits = _fontData[chr * 16 + i];
++				for (int b = 0; b < 16; ++b) {
++					if ((bits & (1 << b)) && x + b >= 0 && x + b <= _bitmapBuffer1.w) {
++						_bitmapBuffer1.bits[(_bitmapBuffer1.h - y - i) * _bitmapBuffer1.pitch + x + b] = colors[pass];
++					}
++				}
++			}
++			x += _fontCharWidth[chr] + 1;
++		}
++	}
++}
+--- a/game.h
++++ b/game.h
+@@ -336,6 +336,8 @@
+ 	void setupObjectPos(int object, int object2, int useObject2, int useData, int type1, int type2);
+ 	bool intersectsBox(int num, int index, int x1, int y1, int x2, int y2);
+ 	void backupState(const char *filePath, int slot);
++	void showMessage(const char *fmt, ...);
++	void drawMessage();
+ 
+ 	// menu.cpp
+ 	void initMenu(int num);
+@@ -465,6 +467,8 @@
+ 	const char *_savePath;
+ 	const char *_backupPath;
+ 	int _backupCount;
++	char _messageText[64];
++	uint32_t _messageEndTime;
+ 	const char *_musicPath;
+ 	uint32_t _cheats;
+ 	int _stateSlot;

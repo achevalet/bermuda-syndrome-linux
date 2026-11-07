@@ -81,7 +81,7 @@ Engine keys:
 | Key | Action |
 |---|---|
 | S / L | Save / load the game in the current slot |
-| PgUp / PgDn (or keypad + / −) | Choose the save slot (1–999) |
+| PgUp / PgDn (or keypad + / −) | Choose the save slot (1–999), shown in the top right corner |
 | W | Toggle fullscreen |
 | F | Toggle fast mode (runs the game as fast as possible) |
 | C | Screenshot (`screenshot-NNN.tga` in `~/.local/share/bermuda-syndrome/`) |
@@ -93,7 +93,8 @@ Saves and screenshots go to `~/.local/share/bermuda-syndrome/` (or
 `git clean` never touches them. Set `BERMUDA_HOME` to use another folder.
 
 > **Saving overwrites the current slot with no confirmation.** Use several slots
-> (PgUp / PgDn) so that one bad save can't cost you your progress.
+> (PgUp / PgDn) so that one bad save can't cost you your progress. The slot
+> number, and whether a save or load worked, show in the top right corner.
 
 **When Jack dies, load a save (L). Don't press S.** In the original engine,
 saving on the Game Over screen replaces your slot with a dead game that ends as
@@ -170,6 +171,7 @@ upstream code will never change, the patches will keep applying cleanly.
 |---|---|
 | [`0001-no-save-after-game-over`](patches/0001-no-save-after-game-over.patch) | Pressing S on the Game Over screen overwrote the slot with a dead game |
 | [`0002-keep-save-history`](patches/0002-keep-save-history.patch) | Saving overwrote the slot, losing the previous save; it now keeps the last versions of each slot (see Saves) |
+| [`0003-show-save-slot-messages`](patches/0003-show-save-slot-messages.patch) | Changing slot, saving and loading gave no feedback on screen, so it was easy to save over the wrong slot |
 
 ## Credits and licenses
 
