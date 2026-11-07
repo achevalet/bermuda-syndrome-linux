@@ -1,0 +1,20 @@
+Read a backwards number range in a script the right way round.
+
+CAVE2/WR207.MOV (the water in scene C2_18) tests Jack's motion against
+"1 or 66..64", which never matches 64 to 66, and the engine printed
+"testExpr cmp 66,64" for it on every frame. The same rule in the 19
+other water scripts reads "1 or 64..66". Swap the bounds instead of
+warning; no other script in the game has a backwards range.
+
+--- a/opcodes.cpp
++++ b/opcodes.cpp
+@@ -135,7 +135,8 @@
+ 			int16_t cmp1 = _objectScript.fetchNextWord();
+ 			int16_t cmp2 = _objectScript.fetchNextWord();
+ 			if (cmp1 > cmp2) {
+-				warning("testExpr cmp %d,%d", cmp1, cmp2);
++				// CAVE2/WR207.MOV says 66..64 where the other water scripts say 64..66
++				SWAP(cmp1, cmp2);
+ 			}
+ 			if (cmp1 <= val && cmp2 >= val) {
+ 				ret = true;
