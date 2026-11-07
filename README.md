@@ -92,6 +92,11 @@ Saves and screenshots go to `~/.local/share/bermuda-syndrome/` (or
 `$XDG_DATA_HOME/bermuda-syndrome/`), outside the repository, so updating or
 `git clean` never touches them. Set `BERMUDA_HOME` to use another folder.
 
+The game starts on your most recently saved slot, so pressing L right after
+launching resumes where you left off. A new game is saved to a free slot instead,
+until you load a game or choose a slot with PgUp / PgDn, so it never overwrites
+that save.
+
 > **Saving overwrites the current slot with no confirmation.** Use several slots
 > (PgUp / PgDn) so that one bad save can't cost you your progress. The slot
 > number, and whether a save or load worked, show in the top right corner.
@@ -172,6 +177,7 @@ upstream code will never change, the patches will keep applying cleanly.
 | [`0001-no-save-after-game-over`](patches/0001-no-save-after-game-over.patch) | Pressing S on the Game Over screen overwrote the slot with a dead game |
 | [`0002-keep-save-history`](patches/0002-keep-save-history.patch) | Saving overwrote the slot, losing the previous save; it now keeps the last versions of each slot (see Saves) |
 | [`0003-show-save-slot-messages`](patches/0003-show-save-slot-messages.patch) | Changing slot, saving and loading gave no feedback on screen, so it was easy to save over the wrong slot |
+| [`0004-start-on-latest-save-slot`](patches/0004-start-on-latest-save-slot.patch) | The game always started on slot 1, so L after launching didn't load the game you were playing |
 
 ## Credits and licenses
 

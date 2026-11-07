@@ -1,0 +1,151 @@
+Start on the most recently saved slot.
+
+The current slot always started at 1, so after launching the game, L
+(or Load in the Esc menu) loaded slot 1 rather than the game you were
+playing, unless you first found your slot with PgUp/PgDn. Start on the
+slot whose save file is the newest instead.
+
+That slot holds your most recent progress, so a new game must not be
+saved over it: until a game is loaded or a slot is chosen with PgUp/PgDn,
+saving (S or the Esc menu) goes to the lowest free slot, with the message
+"Saved to new slot N". Starting a new game (from the menu, or Enter after
+Game Over) resets this.
+
+--- a/game.cpp
++++ b/game.cpp
+@@ -5,6 +5,7 @@
+ 
+ #include <sys/param.h>
+ #include <sys/stat.h>
++#include <ctype.h>
+ #include <dirent.h>
+ #include <stdarg.h>
+ #include <time.h>
+@@ -113,6 +114,7 @@
+ 	_scriptDialogSprite1 = 0;
+ 	_scriptDialogSprite2 = 0;
+ 
++	_stateSlotChosen = false;
+ 	_switchScene = true;
+ 	_startDialogue = false;
+ 	_loadState = false;
+@@ -174,6 +176,7 @@
+ 	_stub->init(caption, kGameScreenWidth, kGameScreenHeight, fullscreen, screenMode);
+ 	allocateTables();
+ 	loadCommonSprites();
++	selectLatestSaveSlot();
+ 	restart();
+ 	if (_isDemo) {
+ 		_nextState = kStateGame;
+@@ -384,6 +387,7 @@
+ 		int slot = _stateSlot + _stub->_pi.stateSlot;
+ 		if (slot >= 1 && slot <= 999) {
+ 			_stateSlot = slot;
++			_stateSlotChosen = true;
+ 			debug(DBG_INFO, "Current game state slot is %d", _stateSlot);
+ 			char filePath[MAXPATHLEN];
+ 			snprintf(filePath, sizeof(filePath), kGameStateFileNameFormat, _savePath, _stateSlot);
+@@ -402,6 +406,7 @@
+ 		} else {
+ 			loadState(&f, _stateSlot, true);
+ 			_loadState = _switchScene; // gamestate will get loaded on scene switch
++			_stateSlotChosen = true;
+ 			showMessage("Loaded slot %d", _stateSlot);
+ 		}
+ 	}
+@@ -412,6 +417,17 @@
+ 	}
+ 	if (_stub->_pi.save) {
+ 		_stub->_pi.save = false;
++		// A new game, not loaded from a slot: don't save it over the latest
++		// save, which is the current slot when the game starts.
++		bool newSlot = false;
++		if (!_stateSlotChosen) {
++			const int slot = findFreeSaveSlot();
++			if (slot != 0) {
++				newSlot = (slot != _stateSlot);
++				_stateSlot = slot;
++			}
++			_stateSlotChosen = true;
++		}
+ 		char filePath[MAXPATHLEN];
+ 		snprintf(filePath, sizeof(filePath), kGameStateFileNameFormat, _savePath, _stateSlot);
+ 		backupState(filePath, _stateSlot);
+@@ -425,7 +441,7 @@
+ 				warning("Error writing game state to file '%s'", filePath);
+ 				showMessage("Could not save to slot %d", _stateSlot);
+ 			} else {
+-				showMessage("Saved to slot %d", _stateSlot);
++				showMessage(newSlot ? "Saved to new slot %d" : "Saved to slot %d", _stateSlot);
+ 			}
+ 		}
+ 	}
+@@ -1569,3 +1585,49 @@
+ 		}
+ 	}
+ }
++
++// Makes the newest save the current slot, so that L resumes the last game.
++void Game::selectLatestSaveSlot() {
++	DIR *dir = opendir(_savePath);
++	if (!dir) {
++		return;
++	}
++	int latestSlot = 0;
++	struct timespec latestTime = { 0, 0 };
++	while (struct dirent *de = readdir(dir)) {
++		const char *name = de->d_name;
++		if (strncmp(name, "bermuda.", 8) != 0 || !isdigit(name[8]) || !isdigit(name[9]) || !isdigit(name[10]) || name[11]) {
++			continue;
++		}
++		const int slot = atoi(name + 8);
++		char filePath[MAXPATHLEN];
++		snprintf(filePath, sizeof(filePath), kGameStateFileNameFormat, _savePath, slot);
++		struct stat st;
++		if (slot < 1 || stat(filePath, &st) != 0 || !S_ISREG(st.st_mode)) {
++			continue;
++		}
++		// Nanoseconds, so that saves made in the same second still compare.
++		const struct timespec &t = st.st_mtim;
++		if (latestSlot == 0 || t.tv_sec > latestTime.tv_sec || (t.tv_sec == latestTime.tv_sec && t.tv_nsec > latestTime.tv_nsec)) {
++			latestSlot = slot;
++			latestTime = t;
++		}
++	}
++	closedir(dir);
++	if (latestSlot != 0) {
++		_stateSlot = latestSlot;
++		debug(DBG_INFO, "Current game state slot is %d (the latest save)", _stateSlot);
++	}
++}
++
++// Returns the lowest slot without a save, or 0 if all are taken.
++int Game::findFreeSaveSlot() const {
++	for (int slot = 1; slot <= 999; ++slot) {
++		char filePath[MAXPATHLEN];
++		snprintf(filePath, sizeof(filePath), kGameStateFileNameFormat, _savePath, slot);
++		if (access(filePath, F_OK) != 0) {
++			return slot;
++		}
++	}
++	return 0;
++}
+--- a/game.h
++++ b/game.h
+@@ -338,6 +338,8 @@
+ 	void backupState(const char *filePath, int slot);
+ 	void showMessage(const char *fmt, ...);
+ 	void drawMessage();
++	void selectLatestSaveSlot();
++	int findFreeSaveSlot() const;
+ 
+ 	// menu.cpp
+ 	void initMenu(int num);
+@@ -472,6 +474,7 @@
+ 	const char *_musicPath;
+ 	uint32_t _cheats;
+ 	int _stateSlot;
++	bool _stateSlotChosen; // by loading it or with PgUp/PgDn, since the game started
+ 	int _mixerSoundId;
+ 	int _mixerMusicId;
+ 	int _menuObjectCount;
