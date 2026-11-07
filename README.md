@@ -86,9 +86,26 @@ Engine keys:
 | F | Toggle fast mode (runs the game as fast as possible) |
 | C | Screenshot (`screenshot-NNN.tga` in `~/.local/share/bermuda-syndrome/`) |
 
+## Saves
+
 Saves and screenshots go to `~/.local/share/bermuda-syndrome/` (or
 `$XDG_DATA_HOME/bermuda-syndrome/`), outside the repository, so updating or
 `git clean` never touches them. Set `BERMUDA_HOME` to use another folder.
+
+> **Saving overwrites the current slot with no confirmation.** Use several slots
+> (PgUp / PgDn) so that one bad save can't cost you your progress.
+
+**When Jack dies, load a save (L). Don't press S.** In the original engine,
+saving on the Game Over screen replaces your slot with a dead game that ends as
+soon as it loads, and Enter restarts the game *from the very beginning*. These
+scripts protect you in two ways:
+
+1. **S is disabled on the Game Over screen.** A small patch
+   ([`patches/`](patches/)) is applied to the engine when `setup.sh` builds it.
+2. **Automatic backups.** When you start `./play.sh`, your saves are copied to
+   `~/.local/share/bermuda-syndrome/backups/<date>/` if any of them changed since
+   the last backup. The last 10 backups are kept; set `BERMUDA_BACKUPS` to change
+   that (`0` disables it). To restore one, copy the file back into `saves/`.
 
 The game's MIDI music plays through SDL_mixer and FluidSynth. `setup.sh` installs a
 General MIDI soundfont if there isn't one already. To use a different one, set
@@ -139,11 +156,24 @@ rm -rf ~/.local/share/bermuda-syndrome    # saves, if you don't want to keep the
 - **"engine source missing".** The repository was cloned without `--recursive`. Run
   `git submodule update --init`.
 
+## Engine fixes
+
+The upstream engine repository, [cyxx/bermuda](https://github.com/cyxx/bermuda), is
+archived (read-only), so bugs can't be reported or fixed there anymore. Fixes are
+kept in [`patches/`](patches/) instead. `setup.sh` applies them to a copy of the
+engine source at build time, and the submodule itself stays untouched. Because the
+upstream code will never change, the patches will keep applying cleanly.
+
+| Patch | Fixes |
+|---|---|
+| [`0001-no-save-after-game-over`](patches/0001-no-save-after-game-over.patch) | Pressing S on the Game Over screen overwrote the slot with a dead game |
+
 ## Credits and licenses
 
 - **Engine:** [bermuda](https://github.com/cyxx/bermuda) © 2007–2011 Gregory Montoir.
   It's included as a git submodule pointing to the author's repository and isn't
   redistributed here. It doesn't declare a license, so see the upstream project.
+  The small fixes in [`patches/`](patches/) are applied to a copy at build time.
 - **Game:** Bermuda Syndrome © 1995 Century Interactive / BMG Interactive. No game
   files are included.
-- **These scripts:** MIT License, see [LICENSE](LICENSE).
+- **These scripts and patches:** MIT License, see [LICENSE](LICENSE).

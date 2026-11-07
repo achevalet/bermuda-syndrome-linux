@@ -1,0 +1,19 @@
+Ignore the save hotkey on the game-over screen.
+
+Saving there overwrites the slot with a dead game: the damage counter is
+already at its limit, so loading it ends the game again immediately, and
+the previous save in that slot is lost.
+
+--- a/game.cpp
++++ b/game.cpp
+@@ -392,6 +392,10 @@
+ 			_loadState = _switchScene; // gamestate will get loaded on scene switch
+ 		}
+ 	}
++	if (_stub->_pi.save && _gameOver) {
++		_stub->_pi.save = false;
++		warning("Not saving after game over: it would overwrite slot %d with a dead game", _stateSlot);
++	}
+ 	if (_stub->_pi.save) {
+ 		_stub->_pi.save = false;
+ 		char filePath[MAXPATHLEN];

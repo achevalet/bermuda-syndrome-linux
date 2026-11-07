@@ -168,13 +168,30 @@ build_engine() {
 
 	# Build out of tree so the engine checkout stays pristine.
 	msg "Building the engine"
+	# Sources are copied with their original timestamps, so make can't notice a
+	# patch being added, changed or removed: start clean when the set changes.
+	local stamp
+	stamp=$(cat "$ENGINE_DIR"/*.cpp "$ENGINE_DIR"/*.h "$ENGINE_DIR"/Makefile \
+		"$ROOT"/patches/*.patch 2>/dev/null | sha256sum | cut -d' ' -f1)
+	if [ "$(cat "$BUILD_DIR/.sources" 2>/dev/null)" != "$stamp" ]; then
+		rm -rf "$BUILD_DIR/src"
+	fi
 	mkdir -p "$BUILD_DIR/src"
 	cp -p "$ENGINE_DIR"/*.cpp "$ENGINE_DIR"/*.h "$ENGINE_DIR"/Makefile "$BUILD_DIR/src/"
+	# Our fixes, applied to the build copy. The ceiling keeps git from treating
+	# build/src as part of this repository, so paths resolve relative to it.
+	local p
+	for p in "$ROOT"/patches/*.patch; do
+		[ -f "$p" ] || continue
+		(cd "$BUILD_DIR/src" && GIT_CEILING_DIRECTORIES=$BUILD_DIR git apply "$p") ||
+			die "could not apply $(basename "$p")"
+	done
 	make -s -C "$BUILD_DIR/src" -j"$(nproc 2>/dev/null || echo 2)" \
 		SDL_CFLAGS="$(pkg-config --cflags sdl2 SDL2_mixer)" \
 		SDL_LIBS="$(pkg-config --libs sdl2 SDL2_mixer)" \
 		VORBIS_LIBS="$(pkg-config --libs vorbisfile)"
 	cp -p "$BUILD_DIR/src/bs" "$BUILD_DIR/bs"
+	echo "$stamp" >"$BUILD_DIR/.sources"
 }
 
 # --- game data ---------------------------------------------------------------
