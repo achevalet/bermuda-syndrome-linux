@@ -185,6 +185,7 @@ upstream code will never change, the patches will keep applying cleanly.
 | [`0009-keep-earlier-screenshots`](patches/0009-keep-earlier-screenshots.patch) | Screenshots restarted at `screenshot-001.tga` each session, overwriting older ones, and were one pixel short, so some viewers refused them |
 | [`0010-backwards-script-range`](patches/0010-backwards-script-range.patch) | A water rule in scene C2_18 never matched (`66..64` instead of `64..66`) and flooded the terminal with `testExpr cmp 66,64` |
 | [`0011-load-before-scene-scripts`](patches/0011-load-before-scene-scripts.patch) | Loading a save after the raft's Game Over crashed the game ("Unable to open '1'"): the dying scene restarted its dialogue before the switch to the saved scene |
+| [`0012-one-sound-at-a-time`](patches/0012-one-sound-at-a-time.patch) | Sounds piled up instead of replacing each other as in the original game, so some were dropped ("Sound playing on channel -1 (max 4)") |
 
 ## Credits and licenses
 

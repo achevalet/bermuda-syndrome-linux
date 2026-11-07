@@ -1,0 +1,33 @@
+Play one sound at a time, like Windows' sndPlaySound().
+
+The original game played its sounds with sndPlaySound(), which stops
+the sound being played before starting the next one, and the scripts
+rely on that: their priorities ask whether "the" sound has finished.
+The engine started each sound on a new SDL channel without stopping
+the previous one, so sounds piled up on the 4 channels until the next
+one failed with "Sound playing on channel -1 (max 4)", leaking the
+loaded sound. Its id -1 then made the priority test check every
+channel, holding back sounds while any one was still playing. Stop the
+previous sound first, and free a sound that cannot be played.
+
+--- a/win16.cpp
++++ b/win16.cpp
+@@ -20,6 +20,8 @@
+ 			const char *fileName = (const char *)data;
+ 			File *f = _fs.openFile(fileName, false);
+ 			if (f) {
++				// Like Windows, play one sound at a time: stop the previous one
++				_mixer->stopSound(_mixerSoundId);
+ 				_mixer->playSound(f, &_mixerSoundId);
+ 				_fs.closeFile(f);
+ 			} else {
+--- a/mixer_sdl.cpp
++++ b/mixer_sdl.cpp
+@@ -55,6 +55,7 @@
+ 				_sounds[ch] = chunk;
+ 			} else {
+ 				warning("Sound playing on channel %d (max %d)", ch, kChannels);
++				Mix_FreeChunk(chunk);
+ 			}
+ 			*id = ch;
+ 		} else {
